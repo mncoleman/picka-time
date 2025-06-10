@@ -34,6 +34,7 @@ const AdminPanel = () => {
     startDate: "",
     endDate: "",
     maxSelections: 5,
+    timeSlots: ["9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"],
   });
 
   useEffect(() => {
@@ -77,6 +78,7 @@ const AdminPanel = () => {
           end_date: formData.endDate,
           max_selections: formData.maxSelections,
           created_by: user.id,
+          time_slots: formData.timeSlots,
         })
         .select()
         .single();
@@ -91,6 +93,7 @@ const AdminPanel = () => {
         startDate: "",
         endDate: "",
         maxSelections: 5,
+        timeSlots: ["9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"],
       });
       fetchCalendars();
     } catch (error) {
