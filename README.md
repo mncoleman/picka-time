@@ -71,3 +71,9 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+# Pages Workflow Buddy
+
+Last updated: 2025-06-10
+
+A React application with Vite and GitHub Pages deployment.
