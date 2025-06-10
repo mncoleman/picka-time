@@ -1,11 +1,11 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Calendar, Eye, BarChart3 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Plus, Calendar, Eye, BarChart3, Trash2, Power } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,7 @@ interface Calendar {
   end_date: string;
   max_selections: number;
   created_at: string;
+  is_disabled?: boolean;
 }
 
 const AdminPanel = () => {
@@ -99,6 +100,66 @@ const AdminPanel = () => {
     } catch (error) {
       console.error('Error creating calendar:', error);
       toast.error('Failed to create calendar');
+    }
+  };
+
+  const deleteCalendar = async (calendarId: string) => {
+    try {
+      // First delete the responses
+      const { error: responsesError } = await supabase
+        .from('time_slot_responses')
+        .delete()
+        .eq('calendar_id', calendarId);
+
+      if (responsesError) throw responsesError;
+
+      // Then delete the calendar
+      const { error: calendarError } = await supabase
+        .from('calendars')
+        .delete()
+        .eq('id', calendarId);
+
+      if (calendarError) throw calendarError;
+
+      toast.success('Calendar deleted successfully');
+      fetchCalendars();
+    } catch (error) {
+      console.error('Error deleting calendar:', error);
+      toast.error('Failed to delete calendar');
+    }
+  };
+
+  const toggleCalendarStatus = async (calendarId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('calendars')
+        .update({ is_disabled: !currentStatus })
+        .eq('id', calendarId);
+
+      if (error) throw error;
+
+      toast.success(currentStatus ? 'Calendar enabled' : 'Calendar disabled');
+      fetchCalendars();
+    } catch (error) {
+      console.error('Error updating calendar status:', error);
+      toast.error('Failed to update calendar status');
+    }
+  };
+
+  const deleteResponse = async (responseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('time_slot_responses')
+        .delete()
+        .eq('id', responseId);
+
+      if (error) throw error;
+
+      toast.success('Response deleted');
+      fetchCalendars();
+    } catch (error) {
+      console.error('Error deleting response:', error);
+      toast.error('Failed to delete response');
     }
   };
 
@@ -250,6 +311,37 @@ const AdminPanel = () => {
                         <BarChart3 className="mr-2 h-4 w-4" />
                         Results
                       </Button>
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Power className={`mr-2 h-4 w-4 ${calendar.is_disabled ? 'text-red-500' : 'text-green-500'}`} />
+                            {calendar.is_disabled ? 'Enable' : 'Disable'}
+                          </Button>
+                        }
+                        title={calendar.is_disabled ? 'Enable Calendar' : 'Disable Calendar'}
+                        description={`Are you sure you want to ${calendar.is_disabled ? 'enable' : 'disable'} this calendar? ${!calendar.is_disabled ? 'Users will not be able to submit new responses while it is disabled.' : ''}`}
+                        confirmText={calendar.is_disabled ? 'Enable' : 'Disable'}
+                        onConfirm={() => toggleCalendarStatus(calendar.id, calendar.is_disabled || false)}
+                      />
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                            Delete
+                          </Button>
+                        }
+                        title="Delete Calendar"
+                        description={`This will permanently delete the calendar "${calendar.name}" and all its responses. This action cannot be undone.`}
+                        confirmText="Delete"
+                        variant="destructive"
+                        onConfirm={() => deleteCalendar(calendar.id)}
+                      />
                     </div>
                   </div>
                 </CardHeader>

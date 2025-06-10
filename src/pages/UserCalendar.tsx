@@ -10,8 +10,7 @@ import { Calendar, Clock, User, Users } from "lucide-react";
 import { format, addDays, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { AuthModal } from "@/components/auth/AuthModal";
+
 
 interface CalendarData {
   id: string;
@@ -21,6 +20,7 @@ interface CalendarData {
   start_date: string;
   end_date: string;
   time_slots: string[];
+  is_disabled?: boolean;
 }
 
 interface TimeSlotResponse {
@@ -42,13 +42,11 @@ interface TimeSlot {
 
 const UserCalendar = () => {
   const { calendarId } = useParams();
-  const { user } = useAuth();
   const [calendar, setCalendar] = useState<CalendarData | null>(null);
   const [responses, setResponses] = useState<TimeSlotResponse[]>([]);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -139,6 +137,11 @@ const UserCalendar = () => {
   };
 
   const toggleTimeSlot = (date: Date, time: string) => {
+    if (calendar?.is_disabled) {
+      toast.error("This calendar is currently disabled and not accepting submissions");
+      return;
+    }
+
     const slotId = `${format(date, 'yyyy-MM-dd')}-${time}`;
     const existingIndex = selectedSlots.findIndex(slot => slot.id === slotId);
     
@@ -166,8 +169,8 @@ const UserCalendar = () => {
   };
 
   const submitResponse = async () => {
-    if (!user) {
-      setShowAuthModal(true);
+    if (calendar?.is_disabled) {
+      toast.error("This calendar is currently disabled and not accepting submissions");
       return;
     }
 
@@ -186,9 +189,8 @@ const UserCalendar = () => {
     try {
       const response = {
         calendar_id: calendarId,
-        user_id: user.id,
         user_name: userName.trim(),
-        user_email: userEmail.trim() || user.email,
+        user_email: userEmail.trim() || null,
         selected_slots: selectedSlots.map(slot => ({
           date: format(slot.date, 'yyyy-MM-dd'),
           time: slot.time,
@@ -198,7 +200,7 @@ const UserCalendar = () => {
 
       const { error } = await supabase
         .from('time_slot_responses')
-        .upsert(response, { onConflict: 'calendar_id,user_id' });
+        .insert(response);
 
       if (error) throw error;
 
@@ -251,7 +253,11 @@ const UserCalendar = () => {
                 <p className="text-muted-foreground mt-2">{calendar.description}</p>
               )}
               <p className="text-muted-foreground mt-1">
-                Select all the time slots when you're available
+                {calendar.is_disabled ? (
+                  <span className="text-destructive">This calendar is currently disabled and not accepting submissions</span>
+                ) : (
+                  "Select all the time slots when you're available"
+                )}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -327,7 +333,7 @@ const UserCalendar = () => {
               <CardHeader>
                 <CardTitle>Submit Your Availability</CardTitle>
                 <CardDescription>
-                  {!user ? "You'll need to sign in to submit your availability" : "Submit your selected time slots"}
+                  Submit your selected time slots
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -371,9 +377,9 @@ const UserCalendar = () => {
                 <Button 
                   onClick={submitResponse} 
                   className="w-full" 
-                  disabled={submitting}
+                  disabled={submitting || calendar.is_disabled}
                 >
-                  {submitting ? "Submitting..." : "Submit Availability"}
+                  {submitting ? "Submitting..." : calendar.is_disabled ? "Calendar is Disabled" : "Submit Availability"}
                 </Button>
               </CardContent>
             </Card>
@@ -400,11 +406,6 @@ const UserCalendar = () => {
           </div>
         </div>
       </div>
-
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
     </div>
   );
 };

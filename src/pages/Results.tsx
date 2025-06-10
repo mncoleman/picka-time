@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, Calendar, Clock, Trophy, Copy, ExternalLink } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Clock, Trophy, Copy, ExternalLink, Trash2, Ban } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ interface CalendarData {
   end_date: string;
   time_slots: string[];
   created_by: string;
+  is_disabled?: boolean;
 }
 
 interface TimeSlotResponse {
@@ -227,6 +229,12 @@ const Results = () => {
                 <Calendar className="h-3 w-3" />
                 {format(parseISO(calendar.start_date), 'MMM d')} - {format(parseISO(calendar.end_date), 'MMM d')}
               </Badge>
+              {calendar.is_disabled && (
+                <Badge variant="destructive" className="gap-1">
+                  <Ban className="h-3 w-3" />
+                  Disabled
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -378,10 +386,38 @@ const Results = () => {
                     {responses.map(response => (
                       <div key={response.id} className="p-3 border rounded">
                         <div className="flex justify-between items-start mb-1">
-                          <div className="font-medium text-sm">{response.user_name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(parseISO(response.created_at), 'MMM d, h:mm a')}
+                          <div>
+                            <div className="font-medium text-sm">{response.user_name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(parseISO(response.created_at), 'MMM d, h:mm a')}
+                            </div>
                           </div>
+                          <ConfirmDialog
+                            trigger={
+                              <Button variant="ghost" size="icon">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            }
+                            title="Delete Response"
+                            description={`Are you sure you want to delete ${response.user_name}'s response? This action cannot be undone.`}
+                            confirmText="Delete"
+                            variant="destructive"
+                            onConfirm={async () => {
+                              try {
+                                const { error } = await supabase
+                                  .from('time_slot_responses')
+                                  .delete()
+                                  .eq('id', response.id);
+
+                                if (error) throw error;
+                                toast.success('Response deleted successfully');
+                                fetchResponses();
+                              } catch (error) {
+                                console.error('Error deleting response:', error);
+                                toast.error('Failed to delete response');
+                              }
+                            }}
+                          />
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {response.selected_slots.length} slots selected
