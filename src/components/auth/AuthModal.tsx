@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -55,16 +54,20 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/admin`,
+          redirectTo: `${window.location.origin}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
-          }
+          },
+          skipBrowserRedirect: true // This enables popup mode
         }
       });
 
       if (error) {
         toast.error(error.message);
+      } else {
+        onClose();
+        toast.success("Signed in successfully!");
       }
     } catch (error) {
       toast.error("Failed to sign in with Google");
